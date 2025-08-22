@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>サンプルデータ投入</title>
+</head>
+<body>
+    <h1>サンプルデータを投入しています...</h1>
+    <div id="status"></div>
+
+    <script>
+        async function initializeSampleData() {
+            const statusDiv = document.getElementById('status');
+            
+            try {
+                statusDiv.innerHTML += '<p>スタッフデータを取得中...</p>';
+                
+                // スタッフデータを取得
+                const staffResponse = await fetch('tables/staff');
+                const staffData = await staffResponse.json();
+                const staff = staffData.data || [];
+                
+                if (staff.length === 0) {
+                    statusDiv.innerHTML += '<p style="color: red;">スタッフデータが見つかりません</p>';
+                    return;
+                }
+                
+                statusDiv.innerHTML += '<p>スタッフが見つかりました: ' + staff.length + '人</p>';
+                
+                // 今月と来月の日付を生成
+                const now = new Date();
+                const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+                
+                const shifts = [];
+                
+                // 今月のシフトデータ（今日から）
+                for (let day = now.getDate(); day <= new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(); day++) {
+                    const date = new Date(now.getFullYear(), now.getMonth(), day);
+                    const dateString = date.toISOString().split('T')[0];
+                    
+                    // 平日は2-3人、休日は1-2人のシフト
+                    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                    const shiftCount = isWeekend ? Math.floor(Math.random() * 2) + 1 : Math.floor(Math.random() * 2) + 2;
+                    
+                    const activeStaff = staff.filter(s => s.active);
+                    const selectedStaff = activeStaff.sort(() => 0.5 - Math.random()).slice(0, shiftCount);
+                    
+                    selectedStaff.forEach((staffMember, index) => {
+                        const startHour = 9 + (index * 4); // 9時、13時、17時開始
+                        const endHour = startHour + 8; // 8時間シフト
+                        
+                        if (endHour <= 22) { // 22時までの営業
+                            const status = Math.random() > 0.8 ? 'scheduled' : 'confirmed';
+                            
+                            shifts.push({
+                                staff_id: staffMember.id,
+                                date: dateString,
+                                start_time: String(startHour).padStart(2, '0') + ':00',
+                                end_time: String(endHour).padStart(2, '0') + ':00',
+                                status: status
+                            });
+                        }
+                    });
+                }
+                
+                // 来月のシフトデータ
+                const nextMonthDays = new Date(now.getFullYear(), now.getMonth() + 2, 0).getDate();
+                for (let day = 1; day <= nextMonthDays; day++) {
+                    const date = new Date(now.getFullYear(), now.getMonth() + 1, day);
+                    const dateString = date.toISOString().split('T')[0];
+                    
+                    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                    const shiftCount = isWeekend ? Math.floor(Math.random() * 2) + 1 : Math.floor(Math.random() * 2) + 2;
+                    
+                    const activeStaff = staff.filter(s => s.active);
+                    const selectedStaff = activeStaff.sort(() => 0.5 - Math.random()).slice(0, shiftCount);
+                    
+                    selectedStaff.forEach((staffMember, index) => {
+                        const startHour = 9 + (index * 4);
+                        const endHour = startHour + 8;
+                        
+                        if (endHour <= 22) {
+                            const status = Math.random() > 0.7 ? 'scheduled' : 'confirmed';
+                            
+                            shifts.push({
+                                staff_id: staffMember.id,
+                                date: dateString,
+                                start_time: String(startHour).padStart(2, '0') + ':00',
+                                end_time: String(endHour).padStart(2, '0') + ':00',
+                                status: status
+                            });
+                        }
+                    });
+                }
+                
+                statusDiv.innerHTML += '<p>シフトデータを投入中... (' + shifts.length + '件)</p>';
+                
+                // シフトデータを投入
+                const response = await fetch('tables/shifts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(shifts)
+                });
+                
+                if (response.ok) {
+                    statusDiv.innerHTML += '<p style="color: green;">✅ サンプルデータの投入が完了しました！</p>';
+                    statusDiv.innerHTML += '<p><a href="index.html">お客様画面を確認</a> | <a href="admin.html">管理画面を確認</a></p>';
+                } else {
+                    throw new Error('シフトデータの投入に失敗しました');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                statusDiv.innerHTML += '<p style="color: red;">❌ エラーが発生しました: ' + error.message + '</p>';
+            }
+        }
+        
+        // ページ読み込み後に実行
+        document.addEventListener('DOMContentLoaded', initializeSampleData);
+    </script>
+</body>
+</html>
